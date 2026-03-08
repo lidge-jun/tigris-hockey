@@ -1,249 +1,281 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { STATS, SCHEDULE, TIMELINE, POSITIONS, SOCIAL } from './data'
+import { useReveal, useCountUp, useMousePosition, useDragScroll } from './hooks'
 
-/* ═══ Data ═══ */
-const ROSTER = [
-  { number: '01', name: 'Kim Dohyun', nameKr: '김도현', position: 'Goaltender', meta: '경영학과 21학번' },
-  { number: '07', name: 'Park Junwoo', nameKr: '박준우', position: 'Left Wing', meta: '체육교육과 22학번' },
-  { number: '11', name: 'Lee Seungmin', nameKr: '이승민', position: 'Center', meta: '경제학과 20학번 · Captain' },
-  { number: '15', name: 'Choi Yeongjae', nameKr: '최영재', position: 'Right Wing', meta: '컴퓨터학과 23학번' },
-  { number: '22', name: 'Jang Hyunwoo', nameKr: '장현우', position: 'Defenseman', meta: '정치외교학과 21학번' },
-  { number: '27', name: 'Shin Taehyuk', nameKr: '신태혁', position: 'Defenseman', meta: '의예과 22학번' },
-  { number: '33', name: 'Yoon Kijun', nameKr: '윤기준', position: 'Center', meta: '생명과학부 20학번' },
-  { number: '44', name: 'Han Jiseok', nameKr: '한지석', position: 'Left Wing', meta: '화학과 23학번' },
-  { number: '55', name: 'Kwon Minsu', nameKr: '권민수', position: 'Goaltender', meta: '행정학과 24학번' },
-  { number: '88', name: 'Seo Dongwon', nameKr: '서동원', position: 'Right Wing', meta: '미디어학부 22학번' },
-]
+/* Global UI */
 
-const TIMELINE = [
-  { year: '1985', title: '동아리 창단', desc: '고려대학교 아이스하키 동아리 TIGRIS 창단. 첫 시즌 12명의 창단 멤버로 출발.' },
-  { year: '1992', title: '연고전 첫 승리', desc: '역대 최초로 연고전 아이스하키 부문 우승. 안암을 뜨겁게 달군 역사적인 밤.' },
-  { year: '2005', title: 'KUHL 리그 출범', desc: '대학 아이스하키 리그 KUHL 창설에 핵심 역할. 초대 우승팀으로 이름을 올림.' },
-  { year: '2015', title: '창단 30주년', desc: '30주년 기념 OB-YB 경기 및 갈라 개최. 역대 선수 150명 이상 참석.' },
-  { year: '2023', title: '전국대회 준우승', desc: '전국 대학 아이스하키 대회 결승 진출. 역대 최고 성적 달성.' },
-  { year: '2026', title: '새 시즌 개막', desc: '40명 이상의 부원과 함께하는 역대 최대 규모. 연고전 4연패를 향한 도전.' },
-]
-
-const SCHEDULE = [
-  { day: '화 · 목', title: '정규 훈련', time: '21:00 - 23:00', desc: '목동 아이스링크에서 진행하는 주 2회 정규 빙상 훈련. 스케이팅 기초부터 전술 훈련까지.', featured: true },
-  { day: '토', title: '주말 스크리매지', time: '14:00 - 16:00', desc: '팀 내 연습 경기. 실전 감각 향상.' },
-  { day: '월 · 수', title: '체력 훈련', time: '19:00 - 20:30', desc: '교내 체육관 웨이트 및 컨디셔닝.' },
-  { day: '매월 셋째 주', title: '친선 경기', time: 'TBD', desc: '타 대학 및 사회인 팀과의 정기 교류전.' },
-]
-
-/* ═══ Intersection Observer Hook ═══ */
-function useReveal() {
-  const ref = useRef(null)
+function ScrollProgress() {
+  const [w, setW] = useState(0)
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) el.classList.add('visible') },
-      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+    const h = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      setW(max > 0 ? (window.scrollY / max) * 100 : 0)
+    }
+    window.addEventListener('scroll', h, { passive: true })
+    return () => window.removeEventListener('scroll', h)
   }, [])
-  return ref
+  return <div className="scroll-bar" style={{ width: `${w}%` }} />
 }
 
-function RevealBlock({ children, className = '', ...props }) {
-  const ref = useReveal()
-  return <div ref={ref} className={`reveal ${className}`} {...props}>{children}</div>
+function CursorGlow() {
+  const { x, y } = useMousePosition()
+  if (!x && !y) return null
+  return <div className="cursor-glow" style={{ left: x, top: y }} />
 }
 
-/* ═══ Nav ═══ */
+/* Nav */
+
 function Nav() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    const h = () => setScrolled(window.scrollY > 60)
+    window.addEventListener('scroll', h, { passive: true })
+    return () => window.removeEventListener('scroll', h)
   }, [])
 
-  const handleClick = useCallback(() => setOpen(false), [])
-
   return (
-    <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
-      <div className="container nav-inner">
-        <a href="#" className="nav-logo">
-          <div>
-            <div className="nav-logo-text">Tigris</div>
-            <div className="nav-logo-sub">Korea Univ. Ice Hockey</div>
-          </div>
+    <nav className={`nav${scrolled ? ' scrolled' : ''}`}>
+      <div className="nav-inner">
+        <a href="#" className="nav-brand" onClick={e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+          <strong>TIGRIS</strong>
+          <span className="nav-sub">KU Ice Hockey</span>
         </a>
-        <button className="nav-toggle" onClick={() => setOpen(o => !o)} aria-label="메뉴 열기">
+        <button className={`nav-burger${open ? ' open' : ''}`} onClick={() => setOpen(o => !o)} aria-label="Menu">
           <span /><span /><span />
         </button>
-        <ul className={`nav-links ${open ? 'open' : ''}`}>
-          {['About', 'Schedule', 'Roster', 'History', 'Join'].map(s => (
-            <li key={s}><a href={`#${s.toLowerCase()}`} onClick={handleClick}>{s}</a></li>
+        <ul className={`nav-menu${open ? ' open' : ''}`}>
+          {['about', 'schedule', 'formation', 'history', 'join'].map(s => (
+            <li key={s}><a href={`#${s}`} onClick={() => setOpen(false)}>{s}</a></li>
           ))}
+          <li><a href={SOCIAL.instagram} target="_blank" rel="noopener noreferrer" className="nav-ig">@kutigris</a></li>
         </ul>
       </div>
     </nav>
   )
 }
 
-/* ═══ Hero ═══ */
+/* Hero */
+
+function Stat({ value, suffix, label }) {
+  const [ref, count] = useCountUp(value)
+  return (
+    <div className="stat" ref={ref}>
+      <span className="stat-val">{count}<span className="stat-sfx">{suffix}</span></span>
+      <span className="stat-lbl">{label}</span>
+    </div>
+  )
+}
+
+const TICKER_TEXT = '\uc0c1\uc2dc \ubd80\uc6d0 \ubaa8\uc9d1 \uc911 \u00b7 @kutigris \u00b7 \ud6c8\ub828: \ud654 22:00 / \uc77c 22:30 \u00b7 \uace0\ub824\ub300\ud559\uad50 \uc544\uc774\uc2a4\ub9c1\ud06c \u00b7 \uc7a5\ube44 \ub300\uc5ec \uac00\ub2a5 \u00b7 '
+
 function Hero() {
   return (
     <section className="hero">
-      <div className="hero-content">
-        <span className="hero-badge">Since 1985</span>
-        <h1 className="hero-title">
-          <span className="accent">TIGRIS</span>
-          Ice Hockey
-        </h1>
-        <p className="hero-desc">
-          고려대학교를 대표하는 아이스하키 동아리.
-          빙판 위에서 호랑이의 정신으로 40년째 질주하고 있습니다.
-        </p>
-        <div className="hero-cta">
-          <a href="#join" className="btn-primary">부원 모집 신청 →</a>
-          <a href="#schedule" className="btn-ghost">훈련 일정 보기</a>
+      <div className="hero-bg" aria-hidden="true" />
+      <div className="ticker" aria-hidden="true">
+        <div className="ticker-track">
+          {[0, 1, 2, 3].map(i => (
+            <span key={i}>{TICKER_TEXT}</span>
+          ))}
         </div>
       </div>
-      <div className="hero-visual">
-        <div className="hero-visual-inner">
-          <div className="hero-tiger" aria-hidden="true">T</div>
-          <div className="hero-stats">
-            {[
-              { n: '40+', l: 'Years of History' },
-              { n: '45', l: 'Active Members' },
-              { n: '4', l: 'Yonko Wins' },
-              { n: '2', l: 'Weekly Practices' },
-            ].map(({ n, l }) => (
-              <div className="stat-card" key={l}>
-                <div className="stat-number">{n}</div>
-                <div className="stat-label">{l}</div>
-              </div>
-            ))}
-          </div>
+      <div className="hero-content">
+        <p className="hero-kicker">{'\uace0\ub824\ub300\ud559\uad50 \uc544\uc774\uc2a4\ud558\ud0a4 \ub3d9\uc544\ub9ac'}</p>
+        <h1 className="hero-title">TIGRIS</h1>
+        <p className="hero-desc">
+          {'2003\ub144 \ucc3d\ub2e8. \ube59\ud310 \uc704\uc5d0\uc11c \ud638\ub791\uc774\uc758 \uc815\uc2e0\uc73c\ub85c \uc9c8\uc8fc\ud569\ub2c8\ub2e4.'}
+          <br />{'\uc544\ub9c8\ucd94\uc5b4 \uace0\uc5f0\uc804 2017\ub144 \uc774\ud6c4 \ubb34\ud328.'}
+        </p>
+        <div className="hero-actions">
+          <a href="#join" className="btn-primary"><span>{'\ubd80\uc6d0 \ubaa8\uc9d1 \u2192'}</span></a>
+          <a href={SOCIAL.instagram} className="btn-outline" target="_blank" rel="noopener noreferrer">
+            <span>@kutigris</span>
+          </a>
         </div>
+      </div>
+      <div className="hero-stats">
+        {STATS.map(s => <Stat key={s.label} {...s} />)}
       </div>
     </section>
   )
 }
 
-/* ═══ About ═══ */
+/* About */
+
 function About() {
+  const ref = useReveal()
   return (
     <section className="about" id="about">
-      <div className="container">
-        <RevealBlock>
-          <div className="about-grid">
-            <div>
-              <div className="about-label">About the Club</div>
-              <h2 className="about-heading">
-                빙판 위의<br />
-                호랑이들
-              </h2>
-            </div>
-            <div className="about-body">
-              <p>
-                <strong>TIGRIS</strong>는 1985년 창단 이래 고려대학교의 아이스하키 전통을 이어온 동아리입니다.
-                초보자부터 유소년 출신 경력자까지, 하키를 사랑하는 모든 고대인이 함께합니다.
-              </p>
-              <div className="about-divider" />
-              <p>
-                매주 화·목 목동 아이스링크에서 정규 훈련을 진행하며,
-                연고전 아이스하키 부문과 전국 대학 리그에 출전하고 있습니다.
-                빙판 위에서 만나는 동료는 졸업 후에도 평생의 동지가 됩니다.
-              </p>
-              <p>
-                단순한 스포츠를 넘어, <strong>팀워크와 끈기, 그리고 고려대의 자부심</strong>을
-                빙판 위에서 체현하는 것이 TIGRIS의 정신입니다.
-              </p>
-            </div>
-          </div>
-        </RevealBlock>
+      <div className="about-inner reveal" ref={ref}>
+        <div className="about-left">
+          <span className="label">About</span>
+          <h2>{'\ube59\ud310 \uc704\uc758'}<br />{'\ud638\ub791\uc774\ub4e4'}</h2>
+        </div>
+        <div className="about-right">
+          <p>
+            <strong>TIGRIS</strong>{'\ub294 2003\ub144 \ucc3d\ub2e8\ub41c \uace0\ub824\ub300\ud559\uad50 \uc720\uc77c\uc758 \uc544\ub9c8\ucd94\uc5b4 \uc544\uc774\uc2a4\ud558\ud0a4 \ub3d9\uc544\ub9ac\uc785\ub2c8\ub2e4. \ucd08\ubcf4\uc790\ubd80\ud130 \uacbd\ub825\uc790\uae4c\uc9c0, \uc544\uc774\uc2a4\ud558\ud0a4\ub97c \uc0ac\ub791\ud558\ub294 \ubaa8\ub4e0 \uace0\ub300\uc778\uc774 \ud568\uaed8\ud569\ub2c8\ub2e4.'}
+          </p>
+          <p>
+            {'\ub9e4\uc8fc \ud654\uc694\uc77c\uacfc \uc77c\uc694\uc77c, \uace0\ub824\ub300\ud559\uad50 \uc544\uc774\uc2a4\ub9c1\ud06c\uc5d0\uc11c \uac10\ub3c5\u00b7\ucf54\uce58\uc9c4 \uc9c0\ub3c4 \ud558\uc5d0 \uccb4\uacc4\uc801 \ud6c8\ub828\uc744 \uc9c4\ud589\ud569\ub2c8\ub2e4. \uc2a4\ucf00\uc774\ud305\uc774 \ucc98\uc74c\uc774\uc5b4\ub3c4 \uac71\uc815 \uc5c6\uc2b5\ub2c8\ub2e4\u2014\uc7a5\ube44 \ub300\uc5ec\ubd80\ud130 \uae30\ucd08 \uad50\uc721\uae4c\uc9c0 \uc9c0\uc6d0\ud569\ub2c8\ub2e4.'}
+          </p>
+          <p>
+            {'\uc544\ub9c8\ucd94\uc5b4 \uace0\uc5f0\uc804\uc5d0\uc11c '}<strong>{'2017\ub144 \uc774\ud6c4 \ubb34\ud328'}</strong>{' \uc804\uc801\uc744 \uae30\ub85d \uc911\uc774\uba70, 2023\ub144\uc5d0\ub294 \uc5f0\uc138\ub300 \ud0c0\uc774\ud0c4\uc2a4\ub97c '}<strong>{'10\u20131\ub85c \ub300\ud30c'}</strong>{'\ud588\uc2b5\ub2c8\ub2e4. \ube59\ud310 \uc704\uc5d0\uc11c \ub9cc\ub4e0 \ub3d9\ub8cc\ub294 \uc878\uc5c5 \ud6c4\uc5d0\ub3c4 \ud3c9\uc0dd\uc758 \ub3d9\uc9c0\uc785\ub2c8\ub2e4.'}
+          </p>
+        </div>
       </div>
     </section>
   )
 }
 
-/* ═══ Schedule ═══ */
+/* Schedule */
+
 function Schedule() {
+  const ref = useReveal()
   return (
     <section className="schedule" id="schedule">
-      <div className="container">
-        <RevealBlock>
-          <div className="section-header">
-            <div>
-              <div className="section-subtitle">Weekly Program</div>
-              <h2 className="section-title">훈련 일정</h2>
-            </div>
+      <div className="section-head reveal" ref={ref}>
+        <span className="label">Weekly Program</span>
+        <h2>{'\ud6c8\ub828 \uc77c\uc815'}</h2>
+      </div>
+      <div className="sched-grid">
+        {SCHEDULE.map((s, i) => (
+          <div className={`sched-card${s.primary ? ' primary' : ''}${s.highlight ? ' highlight' : ''}`} key={i}>
+            <div className="sched-day">{s.day}</div>
+            <div className="sched-title">{s.title}</div>
+            <div className="sched-time">{s.time}</div>
+            <div className="sched-loc">{s.location}</div>
+            <p className="sched-desc">{s.desc}</p>
           </div>
-        </RevealBlock>
-        <RevealBlock>
-          <div className="schedule-grid">
-            {SCHEDULE.map((s, i) => (
-              <div className={`schedule-card ${s.featured ? 'featured' : ''}`} key={i}>
-                <div className="schedule-day">{s.day}</div>
-                <div className="schedule-title">{s.title}</div>
-                <div className="schedule-time">{s.time}</div>
-                <div className="schedule-desc">{s.desc}</div>
-              </div>
-            ))}
-          </div>
-        </RevealBlock>
+        ))}
       </div>
     </section>
   )
 }
 
-/* ═══ Roster ═══ */
-function Roster() {
+/* Formation - Interactive SVG Ice Rink */
+
+function Formation() {
+  const ref = useReveal()
+  const [active, setActive] = useState(null)
+
   return (
-    <section className="roster" id="roster">
-      <div className="container">
-        <RevealBlock>
-          <div className="section-header">
-            <div>
-              <div className="section-subtitle">2026 Season</div>
-              <h2 className="section-title">선수 명단</h2>
-            </div>
-          </div>
-        </RevealBlock>
-        <RevealBlock>
-          <div className="roster-scroll">
-            {ROSTER.map((p) => (
-              <div className="roster-card" key={p.number}>
-                <div className="roster-number">#{p.number}</div>
-                <div className="roster-name">{p.name}</div>
-                <div className="roster-name-kr">{p.nameKr}</div>
-                <div className="roster-position">{p.position}</div>
-                <div className="roster-meta">{p.meta}</div>
-              </div>
-            ))}
-          </div>
-        </RevealBlock>
+    <section className="formation" id="formation">
+      <div className="section-head reveal" ref={ref}>
+        <span className="label">Team Formation</span>
+        <h2>{'\ud3ec\uba54\uc774\uc158'}</h2>
+        <p className="section-desc">{'40\uba85 \uc774\uc0c1\uc758 \ubd80\uc6d0\uc774 \ud3ec\uc9c0\uc158\ubcc4\ub85c \ud6c8\ub828\ud569\ub2c8\ub2e4'}</p>
+      </div>
+      <div className="rink-wrap">
+        <svg viewBox="0 0 1000 500" className="rink" role="img" aria-label="Ice rink formation diagram">
+          <rect x="10" y="10" width="980" height="480" rx="120"
+            fill="none" stroke="rgba(200,223,240,0.1)" strokeWidth="2" />
+          <line x1="500" y1="10" x2="500" y2="490" stroke="rgba(139,0,41,0.25)" strokeWidth="3" />
+          <line x1="320" y1="10" x2="320" y2="490" stroke="rgba(200,223,240,0.12)" strokeWidth="2.5" />
+          <line x1="680" y1="10" x2="680" y2="490" stroke="rgba(200,223,240,0.12)" strokeWidth="2.5" />
+          <circle cx="500" cy="250" r="70" fill="none" stroke="rgba(139,0,41,0.15)" strokeWidth="1.5" />
+          <circle cx="500" cy="250" r="4" fill="rgba(139,0,41,0.3)" />
+          <path d="M 55,200 Q 100,250 55,300" fill="none" stroke="rgba(200,223,240,0.15)" strokeWidth="1.5" />
+          <path d="M 945,200 Q 900,250 945,300" fill="none" stroke="rgba(200,223,240,0.15)" strokeWidth="1.5" />
+          {[[200, 140], [200, 360], [800, 140], [800, 360]].map(([cx, cy], i) => (
+            <circle key={i} cx={cx} cy={cy} r="45" fill="none" stroke="rgba(200,223,240,0.06)" strokeWidth="1" />
+          ))}
+          {POSITIONS.map(p => (
+            <g key={p.id}
+              onMouseEnter={() => setActive(p.id)} onMouseLeave={() => setActive(null)}
+              onTouchStart={() => setActive(a => a === p.id ? null : p.id)}
+              style={{ cursor: 'pointer' }}>
+              <circle cx={p.x} cy={p.y} r={active === p.id ? 32 : 28} fill={p.color}
+                opacity={active === p.id ? 0.22 : 0.08}>
+                {active !== p.id && (
+                  <animate attributeName="r" values="26;33;26" dur="3s" repeatCount="indefinite" />
+                )}
+              </circle>
+              <circle cx={p.x} cy={p.y} r="10" fill={p.color} opacity="0.85" />
+              <circle cx={p.x} cy={p.y} r="4" fill="#fff" opacity="0.9" />
+              {active === p.id && (
+                <g>
+                  <rect x={p.x - 62} y={p.y - 52} width="124" height="32" rx="4"
+                    fill="#131720" stroke={p.color} strokeWidth="1" opacity="0.95" />
+                  <text x={p.x} y={p.y - 31} textAnchor="middle" fill="#e2e5ea"
+                    fontSize="12" fontFamily="Outfit, sans-serif">{p.labelKr + ' \u00b7 ' + p.count + '\uba85'}</text>
+                </g>
+              )}
+            </g>
+          ))}
+        </svg>
+      </div>
+      <div className="pos-legend">
+        {POSITIONS.map(p => (
+          <button key={p.id} className={`legend-item${active === p.id ? ' active' : ''}`}
+            onMouseEnter={() => setActive(p.id)} onMouseLeave={() => setActive(null)}>
+            <span className="legend-dot" style={{ background: p.color }} />
+            <span>{p.labelKr}</span>
+            <span className="legend-ct">{p.count}</span>
+          </button>
+        ))}
       </div>
     </section>
   )
 }
 
-/* ═══ History ═══ */
-function History() {
+/* Timeline - Drag-scrollable */
+
+function Timeline() {
+  const ref = useReveal()
+  const { ref: trackRef, onPointerDown, onPointerMove, dragging } = useDragScroll()
+
   return (
-    <section className="history" id="history">
-      <div className="container">
-        <RevealBlock>
-          <div className="section-header">
-            <div>
-              <div className="section-subtitle">Club History</div>
-              <h2 className="section-title">걸어온 길</h2>
-            </div>
+    <section className="tl-section" id="history">
+      <div className="section-head reveal" ref={ref}>
+        <span className="label">Since 2003</span>
+        <h2>{'\uac78\uc5b4\uc628 \uae38'}</h2>
+      </div>
+      <p className="tl-hint">{'\u2190 \ub4dc\ub798\uadf8\ud558\uc5ec \uc2a4\ud06c\ub864 \u2192'}</p>
+      <div className={`tl-track${dragging ? ' dragging' : ''}`}
+        ref={trackRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove}>
+        {TIMELINE.map(t => (
+          <div className="tl-card" key={t.year}>
+            <div className="tl-year">{t.year}</div>
+            <div className="tl-title">{t.title}</div>
+            <p className="tl-desc">{t.desc}</p>
           </div>
-        </RevealBlock>
-        <div className="timeline">
-          {TIMELINE.map((t, i) => (
-            <div className="timeline-item" key={t.year} style={{ '--i': i }}>
-              <div className="timeline-year">{t.year}</div>
-              <div className="timeline-title">{t.title}</div>
-              <div className="timeline-desc">{t.desc}</div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/* Join CTA */
+
+function Join() {
+  const ref = useReveal()
+  const joinDetails = [
+    { icon: '\ud83d\udccd', title: '\ud6c8\ub828 \uc7a5\uc18c', l1: '\uace0\ub824\ub300\ud559\uad50 \uc544\uc774\uc2a4\ub9c1\ud06c', l2: '\uc548\uc554\ub85c 145, \uc131\ubd81\uad6c' },
+    { icon: '\u23f0', title: '\ud6c8\ub828 \uc2dc\uac04', l1: '\ud654 22:00 \u2013 23:30', l2: '\uc77c 22:30 \u2013 24:00' },
+    { icon: '\ud83c\udfd2', title: '\uc7a5\ube44', l1: '\uac1c\uc778 \uc7a5\ube44 \uc5c6\uc5b4\ub3c4', l2: '\ub3d9\uc544\ub9ac \ub300\uc5ec \uac00\ub2a5' },
+    { icon: '\ud83c\udfaf', title: '\uc790\uaca9', l1: '\uace0\ub824\ub300 \uc7ac\ud559\uc0dd', l2: '\uacbd\ud5d8 \ubb34\uad00 \u00b7 \uc0c1\uc2dc \ubaa8\uc9d1' },
+  ]
+  return (
+    <section className="join" id="join">
+      <div className="join-inner reveal" ref={ref}>
+        <div className="join-text">
+          <h2>{'\ud568\uaed8 \ube59\ud310\uc744'}<br /><span className="crimson">{'\ub2ec\ub824\ubcfc \uc900\ube44 \ub410\ub098\uc694?'}</span></h2>
+          <p>
+            {'\uc544\uc774\uc2a4\ud558\ud0a4 \uacbd\ud5d8\uc774 \uc5c6\uc5b4\ub3c4 \uad1c\ucc2e\uc2b5\ub2c8\ub2e4. \uc2a4\ucf00\uc774\ud2b8\ub97c \ucc98\uc74c \ud0c0\ub294 \uac83\ubd80\ud130 \uc2dc\uc791\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \uc7ac\ud559\uc0dd\u00b7\ud734\ud559\uc0dd\u00b7\uc878\uc5c5\uc0dd\u00b7\ub300\ud559\uc6d0\uc0dd \ub204\uad6c\ub098 \ud658\uc601\ud569\ub2c8\ub2e4.'}
+            <strong>{' \uace8\ud150\ub354 \uc9c0\uc6d0\uc790\ub294 \ud3c9\uc0dd \ud68c\ube44 \uba74\uc81c.'}</strong>
+          </p>
+          <a href={SOCIAL.instagram} className="btn-primary" target="_blank" rel="noopener noreferrer">
+            <span>{'Instagram DM\uc73c\ub85c \uc9c0\uc6d0 \u2192'}</span>
+          </a>
+        </div>
+        <div className="join-grid">
+          {joinDetails.map(d => (
+            <div className="join-card" key={d.title}>
+              <span className="join-icon" aria-hidden="true">{d.icon}</span>
+              <h4>{d.title}</h4>
+              <p>{d.l1}<br />{d.l2}</p>
             </div>
           ))}
         </div>
@@ -252,77 +284,37 @@ function History() {
   )
 }
 
-/* ═══ Join CTA ═══ */
-function Join() {
-  return (
-    <section className="join" id="join">
-      <div className="container">
-        <RevealBlock>
-          <div className="join-inner">
-            <div>
-              <h2 className="join-title">
-                함께 빙판을<br />
-                <span className="crimson">달려볼 준비 됐나요?</span>
-              </h2>
-              <p className="join-desc">
-                아이스하키 경험이 없어도 괜찮습니다. 스케이트를 처음 타는 것부터
-                시작할 수 있습니다. 매 학기 신입 부원을 모집하고 있으며,
-                누구나 환영합니다.
-              </p>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="btn-primary">
-                지원하기 →
-              </a>
-            </div>
-            <div className="join-details">
-              {[
-                { icon: '⏰', title: '모집 시기', desc: '매 학기 초 (3월, 9월)' },
-                { icon: '📍', title: '훈련 장소', desc: '목동 아이스링크' },
-                { icon: '💰', title: '동아리비', desc: '학기당 15만원 (장비 대여 포함)' },
-                { icon: '📋', title: '자격 요건', desc: '고려대학교 재학생 (경험 무관)' },
-              ].map(d => (
-                <div className="join-detail" key={d.title}>
-                  <div className="join-detail-icon" aria-hidden="true">{d.icon}</div>
-                  <div className="join-detail-text">
-                    <h4>{d.title}</h4>
-                    <p>{d.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </RevealBlock>
-      </div>
-    </section>
-  )
-}
+/* Footer */
 
-/* ═══ Footer ═══ */
 function Footer() {
   return (
     <footer className="footer">
-      <div className="container footer-inner">
-        <div className="footer-text">
-          TIGRIS Ice Hockey Club · Korea University · Est. 1985
-        </div>
+      <div className="footer-inner">
+        <div><strong>TIGRIS</strong>{' \u00b7 \uace0\ub824\ub300\ud559\uad50 \uc544\uc774\uc2a4\ud558\ud0a4 \ub3d9\uc544\ub9ac \u00b7 Est. 2003'}</div>
         <div className="footer-links">
-          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">Instagram</a>
-          <a href="mailto:tigris@korea.ac.kr">Contact</a>
+          <a href={SOCIAL.instagram} target="_blank" rel="noopener noreferrer">Instagram</a>
+          <a href={SOCIAL.facebook} target="_blank" rel="noopener noreferrer">Facebook</a>
+          <a href="mailto:kutigris@korea.ac.kr">Email</a>
         </div>
       </div>
     </footer>
   )
 }
 
-/* ═══ App ═══ */
+/* App */
+
 export default function App() {
   return (
     <>
+      <ScrollProgress />
+      <CursorGlow />
+      <div className="grain" aria-hidden="true" />
       <Nav />
       <Hero />
       <About />
       <Schedule />
-      <Roster />
-      <History />
+      <Formation />
+      <Timeline />
       <Join />
       <Footer />
     </>
